@@ -1,5 +1,5 @@
 ---
-title: "Identify quality of weight lifting exercise"
+title: "Identify Quality of Weight Lifting Exercise"
 subtitle: "Machine Learning Course Project"
 author: "Roberto Bonifacio"
 date: "December 11, 2016"
@@ -49,8 +49,8 @@ After selecting random forest using caret package, applied the model to test dat
 
 ###Download the datasets
 ```{r DownloadData,warning=FALSE,message=FALSE}
-setwd("~/Coursera/DataScience Specialization/Practical Machine Learning/ML Course Project")
 
+setwd("C:/Users/rboni/practicalmachinelearning")
 pmlTrainFile <- "./pml-training.csv"
 pmlTestFile <- "./pml-testing.csv"
 if (!file.exists(pmlTrainFile)){
@@ -75,7 +75,8 @@ dim(testing)
 ```
 
 ### Exploratory Analysis and Data Slicing for Cross-Validation
-Loading libraries
+
+Loaded libraries
 ```{r loadLibs,warning=FALSE,message=FALSE,echo=FALSE}
 #Loading Libraries
 library(plyr);
@@ -112,58 +113,56 @@ The density plot shows the classe distribution where most of the values are in t
 ```{r  DensityPlot,warning=FALSE,message=FALSE}
 #density plot
 qplot(classe,colour=user_name,data=training,geom="density")
-
-inBuild <- createDataPartition(y=training$classe, p=0.70, list=FALSE)
-buildData <- training[inBuild,]
+set.seed(2345)
+inBuild <- createDataPartition(y=training$classe, p=0.75, list=FALSE)
 validation <- training[-inBuild,]
-
-inTrain <- createDataPartition(y=buildData$classe, p=0.70, list=FALSE)
-subTrain <- training[inTrain,] 
-subTest <- training[-inTrain,]
-
-training <- subTrain
+training <- training[inBuild,]
 
 #remove user_name and timestamp which are not needed for prediction
 subsetNames2<-grepl("^X|^num_window|^user_name|^cvtd_timestamp",names(training))
 training <- training[!subsetNames2]
 validation <- validation[!subsetNames2]
-subTest <- subTest[!subsetNames2]
+#subTest <- subTest[!subsetNames2]
 testing <- testing[!subsetNames2]
 
 dim(training)
 dim(validation)
 dim(testing)
+table(training$classe)
 ```
 
 ### Fitting ML regression models using caret package: Randon Forests, Decission Trees and Boosting.
 Please note other models were fitted as well but were not suitable to process this type of data.
 ```{r ModelSelection,warning=FALSE,message=FALSE}
-set.seed(12345)
-
-#modFit.rf <- train(classe ~ .,data=training,method="rf", trControl=trainControl(method="cv",number=3))
-
-#1 modFit.rf <- train(classe ~., data=training,method="rf")
+set.seed(2345)
+#fit random forest model
+modFit.rf <- train(classe ~ .,data=training,method="rf")
+#fit decission trees model
 #modFit.rp <- train(classe ~ ., method="rpart", data=training,trControl=trainControl(method="cv",number=3))
-
+#fit boosting model
 #modFit.bt <- train(classe ~.,data=training,method="gbm",verbose=FALSE)
 
-#1 predVal.rf <- predict(modFit.rf,validation)
+#evaluate predictions against validation dataset
+predVal.rf <- predict(modFit.rf,validation)
 #predVal.bt <- predict(modFit.bt,validation)
 #predVal.rp <- predict(modFit.rp,validation)
 
-#1 cm.rf <- confusionMatrix(predVal.rf, validation$classe)
+#obtain confusion matrix
+cm.rf <- confusionMatrix(predVal.rf, validation$classe)
 #cm.bt <- confusionMatrix(predVal.bt, validation$classe)
 #cm.rp <- confusionMatrix(predVal.rp, validation$classe)
 
-#1 cm.rf$overall['Accuracy']
+cm.rf$overall['Accuracy']
 #cm.rp$overall['Accuracy']
 #cm.bt$overall['Accuracy']
 
-#1 sqrt(sum((as.integer(predVal.rf) -as.integer(validation$classe))^2))
+#calculate RMSE
+sqrt(sum((as.integer(predVal.rf) -as.integer(validation$classe))^2))
 #sqrt(sum((as.integer(predVal.rp) -as.integer(validation$classe))^2))
 #sqrt(sum((as.integer(predVal.bt) -as.integer(validation$classe))^2))
 
-#1 qplot(validation$classe,predVal.rf)
+#plot predicted values against values in validation subset
+qplot(validation$classe,predVal.rf)
 #qplot(validation$classe,predVal.rp)
 #qplot(validation$classe,predVal.bt)
 ```
@@ -176,7 +175,7 @@ Here is the prediction values for the testing dataset based on the selected mode
 ### Use final model to predict outcome classe from testing dataset.
 ```{r PredictTestingDataset,warning=FALSE,message=FALSE}
 # picked teh RF model as it is the most accurate and has less errors
-#1 predTest.rf <- predict(modFit.rf, testing)
-#1 predTest.rf
+predTest.rf <- predict(modFit.rf, testing)
+predTest.rf
 
 ```
