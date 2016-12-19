@@ -1,0 +1,182 @@
+---
+title: "Identify quality of weight lifting exercise"
+subtitle: "Machine Learning Course Project"
+author: "Roberto Bonifacio"
+date: "December 11, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+Participants were asked to perform one set of 10 repetitions
+of the Unilateral Dumbbell Biceps Curl in five different fashions:
+exactly according to the specification (Class A), throwing
+the elbows to the front (Class B), lifting the dumbbell
+only halfway (Class C), lowering the dumbbell only halfway
+(Class D) and throwing the hips to the front (Class E). Class
+A corresponds to the specified execution of the exercise,
+while the other 4 classes correspond to common mistakes.
+What you should submit
+
+##Purpose of this project
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+##Analysis
+The following steps were performed to create a machine learning model for the Weight Lifting Exercise Dataset
+Files were downloaded from site and each data set was verified for accuracy.
+
+A Near Zero Variable function was performed to eliminate variables with a low frequency ratio.
+
+Some variables had empty values or NA values so they were removed from the dataset.
+Multiple variables were plotted against the outcome classe to determine if there was a strong correlation between them.
+
+### Data Slicing and Cross Validation
+The training was splitted into two datasets, 75% of the data for sub-training and the rest 25% for validation.
+The purpose of this cross-validation was fit multiptle models on the sub-training dataset and to perform the tests on the validation dataset.
+
+Verified the accuraty and RMSE for each model and selected the model with most accuracy and less RMSE. The expected error will be similar to the one provided by the fitted models against the validation dataset.
+
+Fitted/plotted predicted values against the real values on validation dataset.
+Cross validation was made during model fit with three folds.
+
+After selecting random forest using caret package, applied the model to test dataset and packaged the results in a file.
+
+###Download the datasets
+```{r DownloadData,warning=FALSE,message=FALSE}
+setwd("~/Coursera/DataScience Specialization/Practical Machine Learning/ML Course Project")
+
+pmlTrainFile <- "./pml-training.csv"
+pmlTestFile <- "./pml-testing.csv"
+if (!file.exists(pmlTrainFile)){
+    fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+    download.file(fileURL, pmlTrainFile, mode="wb")
+}
+if (!file.exists(pmlTestFile)){
+     fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+    download.file(fileURL, pmlTestFile, mode="wb")
+} 
+
+if (file.exists(pmlTrainFile)) {
+    training = read.csv(pmlTrainFile,na.strings=c("NA","#DIV/0!", "")) 
+
+}
+if (file.exists(pmlTestFile)) {
+      testing = read.csv(pmlTestFile,na.strings=c("NA","#DIV/0!", ""))
+}
+dim(training) 
+dim(testing)
+
+```
+
+### Exploratory Analysis and Data Slicing for Cross-Validation
+Loading libraries
+```{r loadLibs,warning=FALSE,message=FALSE,echo=FALSE}
+#Loading Libraries
+library(plyr);
+library(dplyr)
+library(ggplot2)
+library(caret);
+```
+
+```{r Exploratory Analysis,warning=FALSE,message=FALSE}
+#summary(training)
+nzvCols <- nearZeroVar (training,saveMetrics=TRUE)
+#display near zero variables = TRUE
+nzvCols[nzvCols$nzv == "TRUE",]
+
+#remove empty and calculated columns
+subsetNames<-grepl("^kurtosis|^skewness|^amplitude|^min|^max|^new_window|^raw_timestamp|^var|^avg|^stddev",names(training))
+
+table(subsetNames)
+
+training <- training[!subsetNames]
+testing <- testing[!subsetNames]
+
+dim(training)
+dim(testing)
+```
+
+Here is a feature plot of some variables in relation to the outcome classe. Just to have a preliminary idea on how they related to each other.
+```{r  FeaturePlot,warning=FALSE,message=FALSE}
+featurePlot(x=training[c("gyros_dumbbell_x","pitch_dumbbell","yaw_arm","roll_belt","yaw_dumbbell")],y=as.character(training$classe),plot="pairs")
+
+```
+
+The density plot shows the classe distribution where most of the values are in the classe A.
+```{r  DensityPlot,warning=FALSE,message=FALSE}
+#density plot
+qplot(classe,colour=user_name,data=training,geom="density")
+
+inBuild <- createDataPartition(y=training$classe, p=0.70, list=FALSE)
+buildData <- training[inBuild,]
+validation <- training[-inBuild,]
+
+inTrain <- createDataPartition(y=buildData$classe, p=0.70, list=FALSE)
+subTrain <- training[inTrain,] 
+subTest <- training[-inTrain,]
+
+training <- subTrain
+
+#remove user_name and timestamp which are not needed for prediction
+subsetNames2<-grepl("^X|^num_window|^user_name|^cvtd_timestamp",names(training))
+training <- training[!subsetNames2]
+validation <- validation[!subsetNames2]
+subTest <- subTest[!subsetNames2]
+testing <- testing[!subsetNames2]
+
+dim(training)
+dim(validation)
+dim(testing)
+```
+
+### Fitting ML regression models using caret package: Randon Forests, Decission Trees and Boosting.
+Please note other models were fitted as well but were not suitable to process this type of data.
+```{r ModelSelection,warning=FALSE,message=FALSE}
+set.seed(12345)
+
+#modFit.rf <- train(classe ~ .,data=training,method="rf", trControl=trainControl(method="cv",number=3))
+
+#1 modFit.rf <- train(classe ~., data=training,method="rf")
+#modFit.rp <- train(classe ~ ., method="rpart", data=training,trControl=trainControl(method="cv",number=3))
+
+#modFit.bt <- train(classe ~.,data=training,method="gbm",verbose=FALSE)
+
+#1 predVal.rf <- predict(modFit.rf,validation)
+#predVal.bt <- predict(modFit.bt,validation)
+#predVal.rp <- predict(modFit.rp,validation)
+
+#1 cm.rf <- confusionMatrix(predVal.rf, validation$classe)
+#cm.bt <- confusionMatrix(predVal.bt, validation$classe)
+#cm.rp <- confusionMatrix(predVal.rp, validation$classe)
+
+#1 cm.rf$overall['Accuracy']
+#cm.rp$overall['Accuracy']
+#cm.bt$overall['Accuracy']
+
+#1 sqrt(sum((as.integer(predVal.rf) -as.integer(validation$classe))^2))
+#sqrt(sum((as.integer(predVal.rp) -as.integer(validation$classe))^2))
+#sqrt(sum((as.integer(predVal.bt) -as.integer(validation$classe))^2))
+
+#1 qplot(validation$classe,predVal.rf)
+#qplot(validation$classe,predVal.rp)
+#qplot(validation$classe,predVal.bt)
+```
+
+### Conclusion
+After evaluation the training and validation datasets using random forest, boosting and regression trees. The model that showed better accurary 0.9951 and less RMSE 4.899 was the random forest model. With these results there is no need to further combine models to find a better prediction.
+
+Here is the prediction values for the testing dataset based on the selected model.
+
+### Use final model to predict outcome classe from testing dataset.
+```{r PredictTestingDataset,warning=FALSE,message=FALSE}
+# picked teh RF model as it is the most accurate and has less errors
+#1 predTest.rf <- predict(modFit.rf, testing)
+#1 predTest.rf
+
+```
